@@ -46,6 +46,14 @@ export interface DailyRecord {
   is_complete: boolean;
 }
 
+export interface MonthlyStat {
+  month: string;
+  rain: number;
+  wetness: number;
+  temp: number;
+  daily_rain_rate?: number;
+}
+
 export interface EnvironmentalSummary {
   start_date: string;
   end_date: string;
@@ -53,10 +61,13 @@ export interface EnvironmentalSummary {
   total_precipitation_mm: number;
   average_temperature_c: number | null;
   average_root_zone_wetness: number | null;
+  peak_soil_moisture?: number;
+  dry_spell_risk_label?: string;
   rainy_days_count: number;
   heavy_rain_days_count: number;
   max_consecutive_dry_days: number;
   data_completeness_pct: number;
+  monthly_cycle?: MonthlyStat[];
 }
 
 export interface EnvironmentalProfile {

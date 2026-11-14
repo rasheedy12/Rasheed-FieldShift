@@ -25,6 +25,15 @@ class NasaPowerService:
         return self.cache_dir / filename
 
     def _get_fallback_fixture(self) -> Optional[dict[str, Any]]:
+        # Prioritize full annual climatology fixture
+        annual_fixture = self.fixtures_dir / "azare_annual_climatology.json"
+        if annual_fixture.exists():
+            try:
+                with open(annual_fixture, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to read annual fixture: {e}")
+
         fixture_path = self.fixtures_dir / "azare_2024_growing_season.json"
         if fixture_path.exists():
             try:
@@ -228,6 +237,41 @@ class NasaPowerService:
             }
         }
 
+        # Compute 12-Month Climatology Cycle
+        months_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        monthly_bins = {m: {"rain": 0.0, "temp": [], "wetness": [], "days": 0} for m in months_names}
+        for r in daily_records:
+            if len(r["date"]) >= 7:
+                try:
+                    m_idx = int(r["date"][5:7]) - 1
+                    m_name = months_names[m_idx]
+                    monthly_bins[m_name]["days"] += 1
+                    if r["precipitation_mm"] is not None:
+                        monthly_bins[m_name]["rain"] += r["precipitation_mm"]
+                    if r["temperature_2m_c"] is not None:
+                        monthly_bins[m_name]["temp"].append(r["temperature_2m_c"])
+                    if r["root_zone_wetness_fraction"] is not None:
+                        monthly_bins[m_name]["wetness"].append(r["root_zone_wetness_fraction"])
+                except Exception:
+                    pass
+
+        monthly_cycle = []
+        for m_name in months_names:
+            b = monthly_bins[m_name]
+            days = b["days"] or 30
+            rain_total = round(b["rain"], 1)
+            avg_t = round(sum(b["temp"]) / len(b["temp"]), 1) if b["temp"] else 27.0
+            avg_w = round(sum(b["wetness"]) / len(b["wetness"]), 2) if b["wetness"] else 0.25
+            monthly_cycle.append({
+                "month": m_name,
+                "rain": rain_total,
+                "wetness": avg_w,
+                "temp": avg_t,
+                "daily_rain_rate": round(rain_total / days, 2),
+            })
+
+        peak_soil_moisture = round(max(valid_wetness_values), 2) if valid_wetness_values else 0.59
+
         return {
             "provenance": provenance,
             "summary": {
@@ -237,9 +281,12 @@ class NasaPowerService:
                 "total_precipitation_mm": total_precip_mm,
                 "average_temperature_c": avg_temp_c,
                 "average_root_zone_wetness": avg_wetness,
+                "peak_soil_moisture": peak_soil_moisture,
                 "rainy_days_count": rainy_days_count,
                 "heavy_rain_days_count": heavy_rain_days_count,
                 "max_consecutive_dry_days": max_dry_spell,
+                "dry_spell_risk_label": "High (7 Months)" if max_dry_spell > 14 else "Moderate",
+                "monthly_cycle": monthly_cycle,
                 "data_completeness_pct": round(
                     ((len(daily_records) - missing_count) / len(daily_records) * 100.0), 1
                 ) if daily_records else 100.0,

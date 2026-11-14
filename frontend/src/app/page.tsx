@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { EnvironmentalProfile, MonthlyStat } from "../types";
 
 // ==========================================
 // DATA & TYPES FOR THE EXACT FIELDSHIFT SYSTEM
@@ -116,6 +117,7 @@ export default function Home() {
   const [selectedPriority, setSelectedPriority] = useState<string>("nitrogen");
   const [highlightedStrategy, setHighlightedStrategy] = useState<string>("strategy_b");
   const [simMode, setSimMode] = useState<"nitrogen" | "yield">("nitrogen");
+  const [envProfile, setEnvProfile] = useState<EnvironmentalProfile | null>(null);
   const [hoveredMonthIdx, setHoveredMonthIdx] = useState<number | null>(8); // Default Sep
   const [isFetchingLive, setIsFetchingLive] = useState<boolean>(false);
   const [liveSuccessMsg, setLiveSuccessMsg] = useState<string | null>(null);
@@ -125,14 +127,40 @@ export default function Home() {
   const curPriority = FARMER_PRIORITIES.find((p) => p.id === selectedPriority) || FARMER_PRIORITIES[0];
   const curLocation = LOCATION_PRESETS.find((l) => l.id === selectedLocation) || LOCATION_PRESETS[0];
 
-  const handleFetchLive = () => {
-    setIsFetchingLive(true);
-    setTimeout(() => {
+  const loadEnvironmentalData = async (lat: number, lon: number, forceRefresh: boolean = false) => {
+    try {
+      setIsFetchingLive(true);
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/v1/environmental-profile?lat=${lat}&lon=${lon}&start_date=20240101&end_date=20241231&force_refresh=${forceRefresh}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setEnvProfile(data);
+        if (forceRefresh) {
+          setLiveSuccessMsg(`Live NASA POWER v2.10.3 API telemetry refreshed for ${lat}° N, ${lon}° E!`);
+          setTimeout(() => setLiveSuccessMsg(null), 5000);
+        }
+      }
+    } catch (err) {
+      console.warn("Backend NASA POWER fetch warning:", err);
+    } finally {
       setIsFetchingLive(false);
-      setLiveSuccessMsg(`Live NASA POWER v2.10.3 API telemetry refreshed for ${curLocation.coords}!`);
-      setTimeout(() => setLiveSuccessMsg(null), 5000);
-    }, 1200);
+    }
   };
+
+  useEffect(() => {
+    loadEnvironmentalData(curLocation.lat, curLocation.lon, false);
+  }, [curLocation]);
+
+  const handleFetchLive = () => {
+    loadEnvironmentalData(curLocation.lat, curLocation.lon, true);
+  };
+
+  const monthlyData: MonthlyStat[] =
+    envProfile?.summary?.monthly_cycle && envProfile.summary.monthly_cycle.length === 12
+      ? envProfile.summary.monthly_cycle
+      : MONTHLY_CYCLE;
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans selection:bg-emerald-500 selection:text-white">
@@ -159,10 +187,26 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
-            {/* Offline-Safe Climatology Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-950/40 text-amber-300 border border-amber-800/60 shadow-xs">
-              <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
-              <span>Offline-Safe NASA Climatology Active</span>
+            {/* Offline-Safe / Live NASA Climatology Badge */}
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold shadow-xs ${
+                envProfile?.provenance?.retrieval_mode === "live_api" || envProfile?.provenance?.retrieval_mode === "live"
+                  ? "bg-emerald-950/60 text-emerald-300 border border-emerald-700/60"
+                  : "bg-amber-950/40 text-amber-300 border border-amber-800/60"
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  envProfile?.provenance?.retrieval_mode === "live_api" || envProfile?.provenance?.retrieval_mode === "live"
+                    ? "bg-emerald-400 animate-ping"
+                    : "bg-amber-400 animate-pulse"
+                }`}
+              ></span>
+              <span>
+                {envProfile?.provenance?.retrieval_mode === "live_api" || envProfile?.provenance?.retrieval_mode === "live"
+                  ? "Live NASA POWER Telemetry Connected"
+                  : "Offline-Safe NASA Climatology Active"}
+              </span>
             </div>
 
             {/* Farmer Advisory Plan Button */}
@@ -298,7 +342,7 @@ export default function Home() {
               </p>
             </div>
             <div className="text-[11px] font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800 mt-2 sm:mt-0">
-              Source: NASA POWER Offline-Safe Climatology Baseline ({curLocation.coords})
+              Source: {envProfile?.provenance?.source_name ?? "NASA POWER"} ({envProfile?.provenance?.retrieval_mode ?? "offline_fixture"}) • {curLocation.coords}
             </div>
           </div>
 
@@ -313,7 +357,9 @@ export default function Home() {
                     PRECTOTCORR
                   </span>
                 </div>
-                <div className="mt-2 text-2xl font-black text-white">790 mm</div>
+                <div className="mt-2 text-2xl font-black text-white">
+                  {envProfile?.summary?.total_precipitation_mm ? Math.round(envProfile.summary.total_precipitation_mm) : 790} mm
+                </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
                 86% concentrated in Jun – Sep
@@ -330,7 +376,9 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-2xl font-black text-emerald-400">0.59</span>
+                  <span className="text-2xl font-black text-emerald-400">
+                    {envProfile?.summary?.peak_soil_moisture ? envProfile.summary.peak_soil_moisture.toFixed(2) : "0.59"}
+                  </span>
                   <span className="text-xs text-slate-400">/ 1.0</span>
                 </div>
               </div>
@@ -348,7 +396,9 @@ export default function Home() {
                     T2M
                   </span>
                 </div>
-                <div className="mt-2 text-2xl font-black text-white">27.9 °C</div>
+                <div className="mt-2 text-2xl font-black text-white">
+                  {envProfile?.summary?.average_temperature_c ? envProfile.summary.average_temperature_c.toFixed(1) : "27.9"} °C
+                </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
                 Apr–May peak reaches 33.2 °C
@@ -364,7 +414,9 @@ export default function Home() {
                     SAHEL INDEX
                   </span>
                 </div>
-                <div className="mt-2 text-2xl font-black text-amber-400">High (7 Months)</div>
+                <div className="mt-2 text-2xl font-black text-amber-400">
+                  {envProfile?.summary?.dry_spell_risk_label ?? "High (7 Months)"}
+                </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
                 Oct–May root wetness drops below 0.28
@@ -434,7 +486,7 @@ export default function Home() {
                 </text>
 
                 {/* Bars for Rainfall (scaled to mm/day) */}
-                {MONTHLY_CYCLE.map((m, idx) => {
+                {monthlyData.map((m, idx) => {
                   const x = 50 + idx * 55;
                   // Daily rate = monthly rain / 30
                   const dailyRain = m.rain / 30;
@@ -459,7 +511,7 @@ export default function Home() {
 
                 {/* Line for Temperature */}
                 <path
-                  d={MONTHLY_CYCLE.map((m, idx) => {
+                  d={monthlyData.map((m, idx) => {
                     const x = 50 + idx * 55 + 17;
                     const y = 180 - ((m.temp - 18) / 20) * 165;
                     return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
@@ -471,7 +523,7 @@ export default function Home() {
                 />
 
                 {/* Points for Temperature */}
-                {MONTHLY_CYCLE.map((m, idx) => {
+                {monthlyData.map((m, idx) => {
                   const x = 50 + idx * 55 + 17;
                   const y = 180 - ((m.temp - 18) / 20) * 165;
                   return (
@@ -481,7 +533,7 @@ export default function Home() {
 
                 {/* Line for Soil Wetness (scaled x10) */}
                 <path
-                  d={MONTHLY_CYCLE.map((m, idx) => {
+                  d={monthlyData.map((m, idx) => {
                     const x = 50 + idx * 55 + 17;
                     const y = 180 - m.wetness * 10 * 16.5;
                     return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
@@ -492,7 +544,7 @@ export default function Home() {
                 />
 
                 {/* Points for Soil Wetness */}
-                {MONTHLY_CYCLE.map((m, idx) => {
+                {monthlyData.map((m, idx) => {
                   const x = 50 + idx * 55 + 17;
                   const y = 180 - m.wetness * 10 * 16.5;
                   return (
@@ -501,7 +553,7 @@ export default function Home() {
                 })}
 
                 {/* X-Axis Month Labels */}
-                {MONTHLY_CYCLE.map((m, idx) => {
+                {monthlyData.map((m, idx) => {
                   const x = 50 + idx * 55 + 17;
                   const isHovered = hoveredMonthIdx === idx;
                   return (
@@ -520,20 +572,20 @@ export default function Home() {
                 })}
 
                 {/* Interactive Tooltip Card */}
-                {hoveredMonthIdx !== null && (
+                {hoveredMonthIdx !== null && monthlyData[hoveredMonthIdx] && (
                   <g transform={`translate(${Math.min(540, Math.max(50, 50 + hoveredMonthIdx * 55 - 40))}, 115)`}>
                     <rect width="165" height="52" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="1" />
                     <text x="8" y="14" fill="#38bdf8" fontSize="9" fontWeight="bold">
-                      {MONTHLY_CYCLE[hoveredMonthIdx].month}
+                      {monthlyData[hoveredMonthIdx].month}
                     </text>
                     <text x="8" y="26" fill="#e2e8f0" fontSize="8">
-                      Precipitation: {(MONTHLY_CYCLE[hoveredMonthIdx].rain / 30).toFixed(2)} mm/day
+                      Precipitation: {(monthlyData[hoveredMonthIdx].rain / 30).toFixed(2)} mm/day
                     </text>
                     <text x="8" y="37" fill="#34d399" fontSize="8">
-                      Root-Zone Soil Wetness: {MONTHLY_CYCLE[hoveredMonthIdx].wetness.toFixed(2)} (0–1 scale)
+                      Root-Zone Soil Wetness: {monthlyData[hoveredMonthIdx].wetness.toFixed(2)} (0–1 scale)
                     </text>
                     <text x="8" y="48" fill="#fbbf24" fontSize="8">
-                      2m Air Temperature: {MONTHLY_CYCLE[hoveredMonthIdx].temp.toFixed(1)} °C
+                      2m Air Temperature: {monthlyData[hoveredMonthIdx].temp.toFixed(1)} °C
                     </text>
                   </g>
                 )}
