@@ -14,6 +14,7 @@ import {
   RotationScenario,
 } from "../types";
 import { SeasonTimelineChart } from "../components/SeasonTimelineChart";
+import { GeospatialFootprintMap } from "../components/GeospatialFootprintMap";
 
 export default function Home() {
   const [location, setLocation] = useState<LocationInfo | null>(null);
@@ -214,6 +215,9 @@ export default function Home() {
 
             {/* Interactive Timeline & Rainfall Dynamics */}
             <SeasonTimelineChart records={profile.daily_records} />
+
+            {/* Geospatial Footprint & Satellite Resolution Scale */}
+            <GeospatialFootprintMap provenance={profile.provenance} />
           </section>
 
           {/* Section 2: Crop Rotation Hypotheses Comparator */}
