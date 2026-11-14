@@ -13,6 +13,7 @@ import {
   CandidateCrop,
   RotationScenario,
 } from "../types";
+import { SeasonTimelineChart } from "../components/SeasonTimelineChart";
 
 export default function Home() {
   const [location, setLocation] = useState<LocationInfo | null>(null);
@@ -210,6 +211,9 @@ export default function Home() {
                 These figures are derived from NASA POWER regional gridded assimilation (0.5° × 0.625° scale, ~50km grid box around Azare). They represent broader climate conditions and do not substitute for on-field soil tests or localized rain gauges.
               </span>
             </div>
+
+            {/* Interactive Timeline & Rainfall Dynamics */}
+            <SeasonTimelineChart records={profile.daily_records} />
           </section>
 
           {/* Section 2: Crop Rotation Hypotheses Comparator */}
