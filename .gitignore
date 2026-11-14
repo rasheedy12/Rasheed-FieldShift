@@ -44,6 +44,11 @@ yarn-error.log*
 backend/.env
 frontend/.env.local
 
+# Data caches (fixtures are committed, runtime caches are ignored)
+data/cache/*
+!data/cache/.gitkeep
+
+
 # IDE & OS
 .vscode/
 .idea/
@@ -52,3 +57,4 @@ frontend/.env.local
 *~
 .DS_Store
 Thumbs.db
+
