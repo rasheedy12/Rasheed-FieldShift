@@ -115,3 +115,4 @@ npm run dev
 ```bash
 PYTHONPATH=backend backend/.venv/bin/python -m unittest discover -s backend/tests -p "test_*.py" -v
 ```
+
