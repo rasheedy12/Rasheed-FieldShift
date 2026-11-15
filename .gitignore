@@ -48,6 +48,7 @@ frontend/.env.local
 # Data caches (fixtures are committed, runtime caches are ignored)
 data/cache/*
 !data/cache/.gitkeep
+data/raw/
 
 
 # IDE & OS
