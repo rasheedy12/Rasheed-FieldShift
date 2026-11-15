@@ -144,3 +144,4 @@ flowchart LR
 2. **Local Validation**: Partner with Bauchi State Agricultural Development Programme (BSADP) extension agents and local farmers' cooperatives to calibrate rotation scores against field yield records.
 3. **Usability & Accessibility**: Implement full Hausa language localization and one-click SMS/WhatsApp summary cards for feature phones.
 4. **Field Pilot**: Deploy prototype trials with farmer groups across Katagum and Jama'are river basins ahead of the 2027 rainy season.
+
