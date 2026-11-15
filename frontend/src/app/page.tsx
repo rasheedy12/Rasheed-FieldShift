@@ -541,36 +541,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Historical Climate Shock Simulator Selector */}
-          <div className="bg-[#090f1d] p-3 rounded-xl border border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">⚡</span>
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Historical Climate Shock Simulator:
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {Object.values(CLIMATE_SCENARIOS).map((scen) => {
-                const isSelected = selectedClimateYear === scen.id;
-                return (
-                  <button
-                    key={scen.id}
-                    onClick={() => setSelectedClimateYear(scen.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      isSelected
-                        ? scen.id === "2023"
-                          ? "bg-rose-500 text-white shadow-md shadow-rose-950/60 ring-2 ring-rose-400"
-                          : "bg-emerald-500 text-slate-950 shadow-md shadow-emerald-950/60 ring-2 ring-emerald-400"
-                        : "bg-[#11192e] text-slate-300 hover:text-white border border-slate-700/80 hover:border-slate-500"
-                    }`}
-                  >
-                    {scen.pill}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* 4 Telemetry Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Card 1: Rainfall */}
@@ -583,11 +553,11 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="mt-2 text-2xl font-black text-white">
-                  {activeClimate.totalRain} mm
+                  {envProfile?.summary?.total_precipitation_mm ? Math.round(envProfile.summary.total_precipitation_mm) : 790} mm
                 </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                {selectedClimateYear === "2023" ? "Severe dry anomaly (-73%)" : "86% concentrated in Jun – Sep"}
+                86% concentrated in Jun – Sep
               </div>
             </div>
 
@@ -601,14 +571,14 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className={`text-2xl font-black ${selectedClimateYear === "2023" ? "text-rose-400" : "text-emerald-400"}`}>
-                    {activeClimate.peakWetness.toFixed(2)}
+                  <span className="text-2xl font-black text-emerald-400">
+                    {envProfile?.summary?.peak_soil_moisture ? envProfile.summary.peak_soil_moisture.toFixed(2) : "0.59"}
                   </span>
                   <span className="text-xs text-slate-400">/ 1.0</span>
                 </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                {selectedClimateYear === "2023" ? "Root zone severely depleted" : "Peak window: July – September"}
+                Peak window: July – September
               </div>
             </div>
 
@@ -622,7 +592,7 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="mt-2 text-2xl font-black text-white">
-                  {activeClimate.meanTemp.toFixed(1)} °C
+                  {envProfile?.summary?.average_temperature_c ? envProfile.summary.average_temperature_c.toFixed(1) : "27.9"} °C
                 </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
@@ -639,12 +609,12 @@ export default function Home() {
                     SAHEL INDEX
                   </span>
                 </div>
-                <div className={`mt-2 text-2xl font-black ${selectedClimateYear === "2023" ? "text-rose-400" : "text-amber-400"}`}>
-                  {activeClimate.drySpellLabel}
+                <div className="mt-2 text-2xl font-black text-amber-400">
+                  {envProfile?.summary?.dry_spell_risk_label ?? "High (7 Months)"}
                 </div>
               </div>
               <div className="mt-2 text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
-                {activeClimate.drySpellSub}
+                Oct–May root wetness drops below 0.28
               </div>
             </div>
           </div>
