@@ -647,144 +647,256 @@ export default function Home() {
 
             {/* SVG Visualizer */}
             <div className="w-full overflow-x-auto">
-              <svg viewBox="0 0 760 220" className="w-full h-auto select-none min-w-[620px]">
-                {/* Shaded Planting Window: June (x=315) to September (x=570) */}
-                <rect x="315" y="15" width="255" height="165" fill="#065f46" fillOpacity="0.18" />
-                <text x="442" y="30" textAnchor="middle" fill="#34d399" fontSize="9" fontWeight="bold">
-                  VIABLE RAINFED PLANTING WINDOW (JUN – SEP)
-                </text>
+              {(() => {
+                // Calculate dynamic scaling for rainfall so high monsoon months never clip or collide with badges
+                const maxDailyRain = Math.max(...monthlyData.map((m) => m.rain / 30), 8.0);
+                const yMaxRain = maxDailyRain > 12 ? 20 : 10;
+                const rainTicks = yMaxRain === 20 ? [0, 5, 10, 15, 20] : [0, 2.5, 5.0, 7.5, 10.0];
 
-                {/* Horizontal Grid lines */}
-                {[0, 2.5, 5.0, 7.5, 10.0].map((val, idx) => {
-                  const y = 180 - val * 16.5;
-                  const tempVal = 18 + val * 2;
-                  return (
-                    <g key={idx}>
-                      <line x1="45" y1={y} x2="710" y2={y} stroke="#1e293b" strokeDasharray="3 3" />
-                      <text x="38" y={y + 3} textAnchor="end" fill="#64748b" fontSize="8" fontFamily="monospace">
-                        {val}
-                      </text>
-                      <text x="716" y={y + 3} textAnchor="start" fill="#d97706" fontSize="8" fontFamily="monospace">
-                        {tempVal}°
-                      </text>
-                    </g>
-                  );
-                })}
+                const chartTop = 46;
+                const chartBottom = 178;
+                const chartH = chartBottom - chartTop; // 132px
 
-                {/* Left Y Axis Label */}
-                <text x="-95" y="14" transform="rotate(-90)" fill="#64748b" fontSize="8">
-                  Rain (mm/day) & Soil Wetness (×10)
-                </text>
-                {/* Right Y Axis Label */}
-                <text x="75" y="-742" transform="rotate(90)" fill="#d97706" fontSize="8">
-                  Temp (°C)
-                </text>
+                // 12 months evenly distributed
+                const slotW = 53.5;
+                const startX = 72;
 
-                {/* Bars for Rainfall (scaled to mm/day) */}
-                {monthlyData.map((m, idx) => {
-                  const x = 50 + idx * 55;
-                  // Daily rate = monthly rain / 30
-                  const dailyRain = m.rain / 30;
-                  const barH = Math.min(160, dailyRain * 17);
-                  const y = 180 - barH;
-                  const isHovered = hoveredMonthIdx === idx;
+                return (
+                  <svg viewBox="0 0 780 230" className="w-full h-auto select-none min-w-[660px]">
+                    <defs>
+                      <linearGradient id="rainBarGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+                        <stop offset="100%" stopColor="#0284c7" stopOpacity="0.75" />
+                      </linearGradient>
+                      <linearGradient id="rainBarGradHover" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#7dd3fc" stopOpacity="1" />
+                        <stop offset="100%" stopColor="#0284c7" stopOpacity="0.95" />
+                      </linearGradient>
+                    </defs>
 
-                  return (
-                    <g key={idx} onMouseEnter={() => setHoveredMonthIdx(idx)} className="cursor-pointer">
+                    {/* Shaded Planting Window: June (idx=5) to September (idx=8) */}
+                    <rect
+                      x="316"
+                      y={chartTop}
+                      width="206"
+                      height={chartH}
+                      fill="#065f46"
+                      fillOpacity="0.16"
+                      rx="4"
+                    />
+                    <line x1="316" y1={chartTop} x2="316" y2={chartBottom} stroke="#10b981" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+                    <line x1="522" y1={chartTop} x2="522" y2={chartBottom} stroke="#10b981" strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+
+                    {/* Header Pill: Viable Rainfed Planting Window (Cleanly situated above the grid without any bar overlap!) */}
+                    <g transform="translate(419, 24)">
                       <rect
-                        x={x}
-                        y={y}
-                        width="34"
-                        height={barH}
-                        rx="3"
-                        fill={isHovered ? "#38bdf8" : "#0284c7"}
-                        fillOpacity={isHovered ? 0.95 : 0.75}
+                        x="-125"
+                        y="-12"
+                        width="250"
+                        height="22"
+                        rx="11"
+                        fill="#064e3b"
+                        stroke="#059669"
+                        strokeWidth="1"
+                        fillOpacity="0.85"
                       />
+                      <text x="0" y="2.5" textAnchor="middle" fill="#34d399" fontSize="9" fontWeight="bold" letterSpacing="0.4">
+                        🌱 VIABLE RAINFED PLANTING WINDOW (JUN – SEP)
+                      </text>
                     </g>
-                  );
-                })}
 
-                {/* Line for Temperature */}
-                <path
-                  d={monthlyData.map((m, idx) => {
-                    const x = 50 + idx * 55 + 17;
-                    const y = 180 - ((m.temp - 18) / 20) * 165;
-                    return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
-                  }).join(" ")}
-                  fill="none"
-                  stroke="#f59e0b"
-                  strokeWidth="2"
-                  strokeDasharray="4 3"
-                />
+                    {/* Horizontal Grid lines */}
+                    {rainTicks.map((rainVal, idx) => {
+                      const frac = idx / (rainTicks.length - 1);
+                      const y = chartBottom - frac * chartH;
+                      const tempVal = 18 + frac * 20; // 18°C to 38°C
+                      return (
+                        <g key={idx}>
+                          <line x1="62" y1={y} x2="718" y2={y} stroke="#1e293b" strokeDasharray="3 3" />
+                          <text x="54" y={y + 3} textAnchor="end" fill="#64748b" fontSize="8.5" fontFamily="monospace">
+                            {rainVal.toFixed(yMaxRain === 20 ? 0 : 1)}
+                          </text>
+                          <text x="726" y={y + 3} textAnchor="start" fill="#d97706" fontSize="8.5" fontFamily="monospace">
+                            {Math.round(tempVal)}°
+                          </text>
+                        </g>
+                      );
+                    })}
 
-                {/* Points for Temperature */}
-                {monthlyData.map((m, idx) => {
-                  const x = 50 + idx * 55 + 17;
-                  const y = 180 - ((m.temp - 18) / 20) * 165;
-                  return (
-                    <circle key={idx} cx={x} cy={y} r="3" fill="#f59e0b" stroke="#0e162a" strokeWidth="1.5" />
-                  );
-                })}
-
-                {/* Line for Soil Wetness (scaled x10) */}
-                <path
-                  d={monthlyData.map((m, idx) => {
-                    const x = 50 + idx * 55 + 17;
-                    const y = 180 - m.wetness * 10 * 16.5;
-                    return `${idx === 0 ? "M" : "L"} ${x} ${y}`;
-                  }).join(" ")}
-                  fill="none"
-                  stroke="#10b981"
-                  strokeWidth="2.5"
-                />
-
-                {/* Points for Soil Wetness */}
-                {monthlyData.map((m, idx) => {
-                  const x = 50 + idx * 55 + 17;
-                  const y = 180 - m.wetness * 10 * 16.5;
-                  return (
-                    <circle key={idx} cx={x} cy={y} r="3.5" fill="#10b981" stroke="#0e162a" strokeWidth="1.5" />
-                  );
-                })}
-
-                {/* X-Axis Month Labels */}
-                {monthlyData.map((m, idx) => {
-                  const x = 50 + idx * 55 + 17;
-                  const isHovered = hoveredMonthIdx === idx;
-                  return (
+                    {/* Left Y Axis Label - Vertically centered, perfectly positioned without clipping */}
                     <text
-                      key={idx}
-                      x={x}
-                      y="198"
+                      x={-(chartTop + chartH / 2)}
+                      y="18"
+                      transform="rotate(-90)"
                       textAnchor="middle"
-                      fill={isHovered ? "#38bdf8" : "#94a3b8"}
-                      fontWeight={isHovered ? "bold" : "normal"}
-                      fontSize="9"
+                      fill="#64748b"
+                      fontSize="8.5"
+                      fontWeight="bold"
                     >
-                      {m.month}
+                      Rain (mm/day) &amp; Soil Wetness (×10)
                     </text>
-                  );
-                })}
 
-                {/* Interactive Tooltip Card */}
-                {hoveredMonthIdx !== null && monthlyData[hoveredMonthIdx] && (
-                  <g transform={`translate(${Math.min(540, Math.max(50, 50 + hoveredMonthIdx * 55 - 40))}, 115)`}>
-                    <rect width="165" height="52" rx="6" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-                    <text x="8" y="14" fill="#38bdf8" fontSize="9" fontWeight="bold">
-                      {monthlyData[hoveredMonthIdx].month}
+                    {/* Right Y Axis Label - Vertically centered */}
+                    <text
+                      x={-(chartTop + chartH / 2)}
+                      y="762"
+                      transform="rotate(-90)"
+                      textAnchor="middle"
+                      fill="#d97706"
+                      fontSize="8.5"
+                      fontWeight="bold"
+                    >
+                      Temp (°C)
                     </text>
-                    <text x="8" y="26" fill="#e2e8f0" fontSize="8">
-                      Precipitation: {(monthlyData[hoveredMonthIdx].rain / 30).toFixed(2)} mm/day
-                    </text>
-                    <text x="8" y="37" fill="#34d399" fontSize="8">
-                      Root-Zone Soil Wetness: {monthlyData[hoveredMonthIdx].wetness.toFixed(2)} (0–1 scale)
-                    </text>
-                    <text x="8" y="48" fill="#fbbf24" fontSize="8">
-                      2m Air Temperature: {monthlyData[hoveredMonthIdx].temp.toFixed(1)} °C
-                    </text>
-                  </g>
-                )}
-              </svg>
+
+                    {/* Bars for Rainfall (scaled to mm/day) */}
+                    {monthlyData.map((m, idx) => {
+                      const cx = startX + idx * slotW;
+                      const barW = 28;
+                      const x = cx - barW / 2;
+                      const dailyRain = m.rain / 30;
+                      const barH = Math.min(chartH, (dailyRain / yMaxRain) * chartH);
+                      const y = chartBottom - barH;
+                      const isHovered = hoveredMonthIdx === idx;
+
+                      return (
+                        <g key={idx} onMouseEnter={() => setHoveredMonthIdx(idx)} className="cursor-pointer">
+                          <rect
+                            x={x}
+                            y={y}
+                            width={barW}
+                            height={Math.max(barH, 1.5)}
+                            rx="3"
+                            fill={isHovered ? "url(#rainBarGradHover)" : "url(#rainBarGrad)"}
+                          />
+                        </g>
+                      );
+                    })}
+
+                    {/* Line for Temperature */}
+                    <path
+                      d={monthlyData.map((m, idx) => {
+                        const cx = startX + idx * slotW;
+                        const y = chartBottom - ((m.temp - 18) / 20) * chartH;
+                        return `${idx === 0 ? "M" : "L"} ${cx} ${y}`;
+                      }).join(" ")}
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="2"
+                      strokeDasharray="4 3"
+                    />
+
+                    {/* Points for Temperature */}
+                    {monthlyData.map((m, idx) => {
+                      const cx = startX + idx * slotW;
+                      const y = chartBottom - ((m.temp - 18) / 20) * chartH;
+                      const isHovered = hoveredMonthIdx === idx;
+                      return (
+                        <circle
+                          key={idx}
+                          cx={cx}
+                          cy={y}
+                          r={isHovered ? 4.5 : 3}
+                          fill="#f59e0b"
+                          stroke="#0e162a"
+                          strokeWidth="1.5"
+                          className="transition-all"
+                        />
+                      );
+                    })}
+
+                    {/* Line for Soil Wetness (scaled x10) */}
+                    <path
+                      d={monthlyData.map((m, idx) => {
+                        const cx = startX + idx * slotW;
+                        const y = chartBottom - m.wetness * chartH;
+                        return `${idx === 0 ? "M" : "L"} ${cx} ${y}`;
+                      }).join(" ")}
+                      fill="none"
+                      stroke="#10b981"
+                      strokeWidth="2.5"
+                    />
+
+                    {/* Points for Soil Wetness */}
+                    {monthlyData.map((m, idx) => {
+                      const cx = startX + idx * slotW;
+                      const y = chartBottom - m.wetness * chartH;
+                      const isHovered = hoveredMonthIdx === idx;
+                      return (
+                        <circle
+                          key={idx}
+                          cx={cx}
+                          cy={y}
+                          r={isHovered ? 5 : 3.5}
+                          fill="#10b981"
+                          stroke="#0e162a"
+                          strokeWidth="1.5"
+                          className="transition-all"
+                        />
+                      );
+                    })}
+
+                    {/* X-Axis Month Labels */}
+                    {monthlyData.map((m, idx) => {
+                      const cx = startX + idx * slotW;
+                      const isHovered = hoveredMonthIdx === idx;
+                      return (
+                        <g key={idx} onClick={() => setHoveredMonthIdx(idx)} className="cursor-pointer">
+                          <text
+                            x={cx}
+                            y="198"
+                            textAnchor="middle"
+                            fill={isHovered ? "#38bdf8" : "#94a3b8"}
+                            fontWeight={isHovered ? "bold" : "500"}
+                            fontSize={isHovered ? "10" : "9"}
+                          >
+                            {m.month}
+                          </text>
+                          {isHovered && (
+                            <circle cx={cx} cy="206" r="2" fill="#38bdf8" />
+                          )}
+                        </g>
+                      );
+                    })}
+
+                    {/* Interactive Tooltip Card - Rendered on top of all elements */}
+                    {hoveredMonthIdx !== null && monthlyData[hoveredMonthIdx] && (() => {
+                      const m = monthlyData[hoveredMonthIdx];
+                      const cx = startX + hoveredMonthIdx * slotW;
+                      const tooltipW = 185;
+                      const tooltipH = 58;
+                      const tooltipX = Math.min(718 - tooltipW, Math.max(62, cx - tooltipW / 2));
+                      const tooltipY = 56;
+
+                      return (
+                        <g transform={`translate(${tooltipX}, ${tooltipY})`}>
+                          <rect
+                            width={tooltipW}
+                            height={tooltipH}
+                            rx="8"
+                            fill="#0b1329"
+                            stroke="#334155"
+                            strokeWidth="1.2"
+                            filter="drop-shadow(0 6px 16px rgba(0,0,0,0.7))"
+                          />
+                          <text x="10" y="15" fill="#38bdf8" fontSize="9.5" fontWeight="bold">
+                            {m.month} Agro-Climatology
+                          </text>
+                          <text x="10" y="28" fill="#e2e8f0" fontSize="8.5">
+                            Precipitation: {(m.rain / 30).toFixed(2)} mm/day
+                          </text>
+                          <text x="10" y="41" fill="#34d399" fontSize="8.5">
+                            Root-Zone Soil Wetness: {m.wetness.toFixed(2)} (0–1 scale)
+                          </text>
+                          <text x="10" y="53" fill="#fbbf24" fontSize="8.5">
+                            2m Air Temperature: {m.temp.toFixed(1)} °C
+                          </text>
+                        </g>
+                      );
+                    })()}
+                  </svg>
+                );
+              })()}
             </div>
           </div>
         </section>
